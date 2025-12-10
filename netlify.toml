@@ -3,9 +3,6 @@
 
 # Build Settings
 [build]
-  # Base directory for monorepo structure
-  base = "cornerstone"
-
   # Command to build the production bundle
   command = "npm run build"
 

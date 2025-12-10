@@ -1,0 +1,71 @@
+# Netlify Configuration for Pricing Models Calculator
+# Documentation: https://docs.netlify.com/configure-builds/file-based-configuration/
+
+# Build Settings
+[build]
+  # Base directory for monorepo structure
+  base = "cornerstone"
+
+  # Command to build the production bundle
+  command = "npm run build"
+
+  # Directory containing the production build output
+  publish = "dist"
+
+  # Node version for build environment
+  [build.environment]
+    NODE_VERSION = "18"
+
+# SPA Redirect Rules
+# Ensures React Router works correctly by redirecting all routes to index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Security Headers
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Prevent clickjacking attacks
+    X-Frame-Options = "DENY"
+
+    # Prevent MIME type sniffing
+    X-Content-Type-Options = "nosniff"
+
+    # Enable browser XSS protection
+    X-XSS-Protection = "1; mode=block"
+
+    # Referrer policy for privacy
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+    # Content Security Policy (adjust as needed)
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://firebasestorage.googleapis.com; font-src 'self' data:; connect-src 'self' https://openrouter.ai;"
+
+    # Permissions policy
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+# Cache Control Headers for Assets
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Cache Control for HTML
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Note: Built-in Authentication
+# ==============================
+# This application includes a built-in login page with password protection.
+# The default password is: cornerstone2024
+#
+# To change the password:
+# 1. Open src/components/Login.jsx
+# 2. Update the CORRECT_PASSWORD constant
+# 3. Commit and redeploy
+#
+# The password is stored in the client code and uses sessionStorage for authentication.
+# Users will need to re-login when they close their browser.

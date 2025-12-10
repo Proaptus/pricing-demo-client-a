@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Streamdown styles for markdown rendering */
+@source "../node_modules/streamdown/dist/index.js";
+
+* {
+  @apply box-border;
+}
+
+html {
+  @apply scroll-smooth;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 font-sans antialiased;
+}
+
+/* Smooth transitions */
+* {
+  @apply transition-colors duration-200;
+}
+
+/* Focus states for accessibility */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  @apply outline-2 outline-offset-2 outline-blue-500;
+}
+
+/* Professional table styling */
+table {
+  @apply w-full border-collapse;
+}
+
+thead th {
+  @apply bg-slate-100 text-slate-800 font-semibold text-left p-3 align-middle;
+}
+
+tbody tr {
+  @apply border-b border-slate-200 hover:bg-slate-50;
+}
+
+tbody td {
+  @apply p-3 align-middle;
+}
+
+/* Input field styling */
+input[type="number"],
+input[type="text"],
+select {
+  @apply bg-white border border-slate-300 rounded px-3 py-2 text-slate-900;
+  @apply focus:border-blue-500 focus:ring-2 focus:ring-blue-100;
+}
+
+/* Button base styles */
+button {
+  @apply font-medium cursor-pointer;
+}
+
+button:disabled {
+  @apply opacity-50 cursor-not-allowed;
+}

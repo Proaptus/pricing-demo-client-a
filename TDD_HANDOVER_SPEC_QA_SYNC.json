@@ -1,0 +1,303 @@
+{
+  "meta": {
+    "task_id": "qa-documentation-sync-161125",
+    "repo": "pricing/cornerstone",
+    "type": "feature",
+    "priority": "HIGH",
+    "created": "2025-11-16",
+    "description": "Implement Q&A Documentation Sync to provide LLM with current runtime values"
+  },
+  "goal": {
+    "type": "feature",
+    "summary": "Sync current runtime pricing values to documentation for accurate Q&A responses",
+    "scope": [
+      "Create baselineExporter service",
+      "Create runtimeStateExporter service",
+      "Create documentationSync coordinator",
+      "Update documentationLoader integration",
+      "Add useEffect hooks to Calculator component"
+    ],
+    "non_goals": [
+      "Formula extraction from code (manual for now)",
+      "Real-time sync (debounced is sufficient)",
+      "UI for sync status (silent operation)",
+      "Modification of existing pricing logic"
+    ]
+  },
+  "context": {
+    "entry_points": [
+      "src/components/CornerstonePricingCalculator.jsx",
+      "src/services/documentationLoader.js",
+      "src/data/baselineConstants.js"
+    ],
+    "impacted_files": [
+      "src/services/baselineExporter.js (new)",
+      "src/services/runtimeStateExporter.js (new)",
+      "src/services/documentationSync.js (new)",
+      "src/services/documentationLoader.js (update)",
+      "src/components/CornerstonePricingCalculator.jsx (update)",
+      "docs/baseline/current.json (generated)",
+      "docs/PRICING_MODEL_REFERENCE.md (update - Section B)"
+    ],
+    "dependencies": [
+      "Node.js fs/promises module",
+      "React 18 hooks (useEffect, useCallback)",
+      "Existing documentationLoader pattern"
+    ],
+    "key_invariants": [
+      "Sync only runs in Node.js environment (not browser)",
+      "File writes are async and non-blocking",
+      "Debounced to prevent performance impact",
+      "Backward compatible with existing Q&A system"
+    ]
+  },
+  "tdd_plan": {
+    "acceptance_criteria": [
+      {
+        "id": "AC1",
+        "gherkin": "Feature: Export baseline constants and runtime state\n  Scenario: Export baseline on app initialization\n    Given defaultInputs, SCENARIO_CONFIGS, and ASSUMPTION_PRESETS exist in baselineConstants.js\n    When exportBaseline(inputs, model, scenario) is called with current state\n    Then docs/baseline/current.json is created with:\n      - metadata.exportedAt (ISO timestamp)\n      - metadata.version (1.0.0)\n      - metadata.source (CornerstonePricingCalculator)\n      - defaultInputs (all baseline constants from baselineConstants.js)\n      - scenarioConfigs (conservative, standard, aggressive)\n      - assumptionPresets (excellent, high, medium, low)\n      - runtimeState.inputs (current user inputs)\n      - runtimeState.scenario (selected scenario)\n      - runtimeState.computedModel (full output from computeModel())"
+      },
+      {
+        "id": "AC2",
+        "gherkin": "Feature: Export current runtime values as markdown\n  Scenario: Format runtime values for documentation\n    Given current inputs state and computed model from computeModel()\n    When exportRuntimeState(inputs, model) is called\n    Then markdown Section B is generated containing:\n      - Header: ## [RUNTIME VALUES - CURRENT STATE]\n      - Metadata subsection (timestamp, scenario)\n      - Current Inputs subsection (all input values formatted)\n      - Volume Calculations subsection (Total Documents, Total Pages)\n      - Cost Breakdown subsection (Manual Review, OCR, LLM, Build CAPEX, etc.)\n      - Price Calculations subsection (Total CAPEX, OPEX, per-site pricing)\n      - Margin Analysis subsection (total cost, price, profit, margin %)\n      - All monetary values formatted with formatGBP()\n      - All numbers formatted with appropriate precision"
+      },
+      {
+        "id": "AC3",
+        "gherkin": "Feature: Load synced baseline in Q&A context\n  Scenario: Q&A includes current runtime values\n    Given docs/baseline/current.json exists with synced data\n    When buildDocumentationContext() is called by Q&A system\n    Then LLM context includes:\n      - [BASELINE - SSOT] section from formatBaseline()\n      - Current runtime values from current.json\n      - All existing documentation (README, PRICING_MODEL_REFERENCE, etc.)\n    And baseline section is positioned before other documentation\n    And baseline contains both defaultInputs and current runtimeState"
+      },
+      {
+        "id": "AC4",
+        "gherkin": "Feature: Trigger sync on state changes\n  Scenario: Sync on app initialization\n    Given CornerstonePricingCalculator component mounts\n    When useEffect with empty dependency array runs\n    Then syncDocumentation() is called once\n    And docs/baseline/current.json is created with initial state\n\n  Scenario: Sync on user input changes\n    Given CornerstonePricingCalculator is mounted and running\n    When user changes inputs (e.g., nSites from 17000 to 20000)\n    Then debounced syncDocumentation() is triggered after 500ms\n    And docs/baseline/current.json is updated with new values\n    And sync completes silently without UI impact\n\n  Scenario: Debouncing prevents excessive syncs\n    Given user is rapidly changing multiple input values\n    When multiple input changes occur within 500ms\n    Then only one sync operation executes after last change\n    And intermediate states are not written to disk"
+      }
+    ],
+    "unit_tests": [
+      {
+        "name": "baselineExporter - exports complete baseline JSON",
+        "target": "src/services/baselineExporter.js",
+        "cases": [
+          "creates JSON with correct metadata structure",
+          "includes all defaultInputs from baselineConstants",
+          "includes all scenarioConfigs",
+          "includes all assumptionPresets",
+          "includes current runtimeState (inputs + model)",
+          "timestamp is valid ISO 8601 format",
+          "version is 1.0.0",
+          "source is CornerstonePricingCalculator"
+        ]
+      },
+      {
+        "name": "runtimeStateExporter - formats runtime values as markdown",
+        "target": "src/services/runtimeStateExporter.js",
+        "cases": [
+          "generates Section B header correctly",
+          "includes metadata subsection with timestamp",
+          "includes all current input values",
+          "formats monetary values with formatGBP()",
+          "includes volume calculations",
+          "includes cost breakdowns",
+          "includes price calculations",
+          "includes margin analysis",
+          "markdown is valid and well-structured"
+        ]
+      },
+      {
+        "name": "documentationSync - coordinates sync operations",
+        "target": "src/services/documentationSync.js",
+        "cases": [
+          "calls baselineExporter with correct arguments",
+          "calls runtimeStateExporter with correct arguments",
+          "writes baseline JSON to docs/baseline/current.json",
+          "creates docs/baseline directory if not exists",
+          "handles file write errors gracefully",
+          "logs errors but doesn't throw",
+          "returns success/failure status",
+          "debounces multiple rapid calls"
+        ]
+      },
+      {
+        "name": "documentationLoader - loads synced baseline",
+        "target": "src/services/documentationLoader.js",
+        "cases": [
+          "loadBaseline() reads current.json correctly",
+          "loadBaseline() returns null in browser environment",
+          "formatBaseline() generates correct markdown",
+          "buildDocumentationContext() includes baseline section",
+          "baseline section appears before other docs"
+        ]
+      }
+    ],
+    "integration_tests": [
+      {
+        "name": "Full sync flow - app init to Q&A context",
+        "scope": "End-to-end sync operation",
+        "env": "Node.js test environment with file system access",
+        "steps": [
+          "Mount CornerstonePricingCalculator component",
+          "Verify syncDocumentation() triggered on mount",
+          "Wait for debounce delay",
+          "Verify docs/baseline/current.json created",
+          "Read JSON and verify structure",
+          "Call buildDocumentationContext()",
+          "Verify LLM context includes current values"
+        ]
+      },
+      {
+        "name": "State change triggers sync",
+        "scope": "User interaction to documentation update",
+        "env": "React Testing Library with file system mocks",
+        "steps": [
+          "Render Calculator component",
+          "Simulate user changing nSites input",
+          "Wait for debounce delay (500ms)",
+          "Verify syncDocumentation() called",
+          "Verify baseline JSON updated with new nSites value"
+        ]
+      }
+    ],
+    "coverage_targets": {
+      "globs": [
+        "src/services/baselineExporter.js",
+        "src/services/runtimeStateExporter.js",
+        "src/services/documentationSync.js",
+        "src/services/documentationLoader.js"
+      ],
+      "thresholds": {
+        "line": 85,
+        "branch": 80,
+        "function": 90,
+        "statement": 85
+      }
+    }
+  },
+  "steps": [
+    {
+      "id": "S1",
+      "intent": "Create baseline exporter service with tests",
+      "files_to_add": [
+        "src/services/__tests__/baselineExporter.test.js",
+        "src/services/baselineExporter.js"
+      ],
+      "commands": [
+        "npm test -- src/services/__tests__/baselineExporter.test.js --watch"
+      ],
+      "expected_initial_result": "FAIL",
+      "expected_final_result": "PASS",
+      "details": "Write failing tests for exportBaseline(), then implement function to export defaultInputs, SCENARIO_CONFIGS, ASSUMPTION_PRESETS, and current runtime state to JSON format. Return JSON object with metadata and all baseline data."
+    },
+    {
+      "id": "S2",
+      "intent": "Create runtime state exporter service with tests",
+      "files_to_add": [
+        "src/services/__tests__/runtimeStateExporter.test.js",
+        "src/services/runtimeStateExporter.js"
+      ],
+      "commands": [
+        "npm test -- src/services/__tests__/runtimeStateExporter.test.js --watch"
+      ],
+      "expected_initial_result": "FAIL",
+      "expected_final_result": "PASS",
+      "details": "Write failing tests for exportRuntimeState(), then implement function to format current inputs and computed model as markdown Section B. Include all values visible in UI, formatted with formatGBP() for currency."
+    },
+    {
+      "id": "S3",
+      "intent": "Create documentation sync coordinator with tests",
+      "files_to_add": [
+        "src/services/__tests__/documentationSync.test.js",
+        "src/services/documentationSync.js"
+      ],
+      "commands": [
+        "npm test -- src/services/__tests__/documentationSync.test.js --watch"
+      ],
+      "expected_initial_result": "FAIL",
+      "expected_final_result": "PASS",
+      "details": "Write failing tests for syncDocumentation(), then implement coordinator that calls baselineExporter and runtimeStateExporter, writes to files (with Node.js env check), handles errors gracefully, and supports debouncing."
+    },
+    {
+      "id": "S4",
+      "intent": "Update documentation loader with baseline integration",
+      "files_to_edit": [
+        "src/services/__tests__/documentationLoader.test.js",
+        "src/services/documentationLoader.js"
+      ],
+      "commands": [
+        "npm test -- src/services/__tests__/documentationLoader.test.js"
+      ],
+      "expected_initial_result": "PASS",
+      "expected_final_result": "PASS",
+      "details": "Verify existing loadBaseline() and formatBaseline() work with new JSON format. Ensure buildDocumentationContext() includes baseline section. Tests should already pass if format is backward compatible."
+    },
+    {
+      "id": "S5",
+      "intent": "Add sync hooks to Calculator component",
+      "files_to_edit": [
+        "src/components/CornerstonePricingCalculator.jsx"
+      ],
+      "commands": [
+        "npm test -- CornerstonePricingCalculator"
+      ],
+      "expected_initial_result": "PASS",
+      "expected_final_result": "PASS",
+      "details": "Add useEffect on mount to trigger initial sync. Add useEffect with [inputs, scenario] dependencies to trigger debounced sync on changes. Use useCallback for debounced function. Verify component still passes existing tests."
+    },
+    {
+      "id": "S6",
+      "intent": "Run integration tests and UAT",
+      "files_to_verify": [
+        "docs/baseline/current.json",
+        "docs/PRICING_MODEL_REFERENCE.md"
+      ],
+      "commands": [
+        "npm test -- integration",
+        "./start-cornerstone.sh"
+      ],
+      "expected_initial_result": "PASS",
+      "expected_final_result": "PASS",
+      "details": "Run integration tests to verify full sync flow. Start app manually, verify docs created. Test Q&A with current values. Change inputs, verify docs update. All tests pass."
+    }
+  ],
+  "tooling": {
+    "language": "JavaScript",
+    "framework": "React 18",
+    "build": ["npm run dev", "npm run build"],
+    "test": ["npm test", "npm test -- --watch"],
+    "runtime": "Node.js (file I/O) + Browser (React app)"
+  },
+  "risks": [
+    {
+      "description": "File I/O in browser environment",
+      "likelihood": "MEDIUM",
+      "impact": "HIGH",
+      "mitigation": "Use Node.js environment check (existing pattern from documentationLoader)"
+    },
+    {
+      "description": "Performance impact from frequent syncs",
+      "likelihood": "MEDIUM",
+      "impact": "MEDIUM",
+      "mitigation": "Debounce sync operations (500ms), only trigger on actual changes"
+    },
+    {
+      "description": "Large documentation files",
+      "likelihood": "LOW",
+      "impact": "LOW",
+      "mitigation": "JSON is compact, markdown sections reasonable size, async writes"
+    },
+    {
+      "description": "Sync failures breaking app",
+      "likelihood": "LOW",
+      "impact": "MEDIUM",
+      "mitigation": "Graceful error handling, log errors but continue app operation"
+    }
+  ],
+  "rollback": "Remove useEffect hooks from CornerstonePricingCalculator.jsx. Delete new service files (baselineExporter, runtimeStateExporter, documentationSync). Revert documentationLoader.js if modified. All changes are additive, no existing functionality broken.",
+  "done_definition": [
+    "All unit tests pass (baselineExporter, runtimeStateExporter, documentationSync, documentationLoader)",
+    "All integration tests pass (full sync flow, state change triggers)",
+    "docs/baseline/current.json contains current runtime state",
+    "Q&A LLM receives and uses current values in answers",
+    "Sync runs silently without impacting UI performance",
+    "Pattern follows existing documentationLoader conventions",
+    "Code coverage meets thresholds (85% line, 80% branch)",
+    "UAT tests verify end-to-end functionality",
+    "Manual testing confirms Q&A accuracy improvement"
+  ]
+}

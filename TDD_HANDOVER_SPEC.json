@@ -1,0 +1,394 @@
+{
+  "meta": {
+    "task_id": "cornerstone-qa-feature-121125",
+    "repo": "pricing",
+    "commit": "555934ad3d752c889bfdbcad91556d7ac5d9d810",
+    "model": "cornerstone",
+    "created": "2025-11-14"
+  },
+  "goal": {
+    "type": "feature",
+    "summary": "Add LLM-powered Q&A feature to Cornerstone pricing calculator using OpenRouter API",
+    "scope": [
+      "OpenRouter API integration service",
+      "Pricing data formatting for LLM context",
+      "System prompt engineering",
+      "Q&A UI component",
+      "Integration into main calculator"
+    ],
+    "non_goals": [
+      "Chat history persistence",
+      "Multi-turn conversations (v1)",
+      "Server-side storage of Q&A data",
+      "Modifying existing pricing calculations"
+    ]
+  },
+  "context": {
+    "entry_points": [
+      "cornerstone/src/components/CornerstonePricingCalculator.jsx"
+    ],
+    "impacted_files": [
+      "cornerstone/src/services/openrouter.js (NEW)",
+      "cornerstone/src/services/formatModelForLLM.js (NEW)",
+      "cornerstone/src/services/qaSystemPrompt.js (NEW)",
+      "cornerstone/src/components/pricing/PricingQA.jsx (NEW)",
+      "cornerstone/src/components/CornerstonePricingCalculator.jsx (MODIFIED)"
+    ],
+    "key_invariants": [
+      "All styling uses Tailwind CSS patterns from existing components",
+      "Functional components with React hooks (no class components)",
+      "API key stored in .env file (VITE_ prefix for Vite access)",
+      "Environment-based model selection (dev: Grok, prod: Claude Haiku)",
+      "No changes to existing pricing calculation logic"
+    ],
+    "dependencies": [
+      "React 18 (already installed)",
+      "Vite 5 (already installed)",
+      "OpenRouter API (external service)",
+      "Environment variables in .env file (already created)"
+    ]
+  },
+  "tdd_plan": {
+    "acceptance_criteria": [
+      {
+        "id": "AC1",
+        "gherkin": "Feature: OpenRouter API Integration\nScenario: Successfully query OpenRouter API\n  Given a valid API key is configured\n  And a system prompt and user message are provided\n  When the queryOpenRouter function is called\n  Then it should send a POST request to OpenRouter\n  And include proper headers (Authorization, Content-Type, HTTP-Referer)\n  And receive a response with answer text\n  And return the answer to the caller"
+      },
+      {
+        "id": "AC2",
+        "gherkin": "Feature: OpenRouter API Integration\nScenario: Handle API errors gracefully\n  Given the OpenRouter API is unavailable\n  When the queryOpenRouter function is called\n  Then it should throw a descriptive error\n  And the error message should be user-friendly"
+      },
+      {
+        "id": "AC3",
+        "gherkin": "Feature: Pricing Data Formatting\nScenario: Format pricing data for LLM consumption\n  Given valid pricing inputs and computed model\n  When formatPricingDataForLLM is called\n  Then it should include all key assumptions\n  And include all cost calculations\n  And include margin analysis\n  And include scenario details\n  And produce readable structured text"
+      },
+      {
+        "id": "AC4",
+        "gherkin": "Feature: System Prompt Engineering\nScenario: Build effective system prompt\n  Given pricing data is formatted\n  When buildSystemPrompt is called\n  Then it should define the assistant's role\n  And include all pricing data context\n  And provide response guidelines\n  And instruct to answer only pricing questions"
+      },
+      {
+        "id": "AC5",
+        "gherkin": "Feature: Pricing Q&A Component\nScenario: Display Q&A interface\n  Given the component is mounted\n  Then it should display a question input field\n  And display a submit button\n  And display a response area (initially empty)"
+      },
+      {
+        "id": "AC6",
+        "gherkin": "Feature: Pricing Q&A Component\nScenario: Submit question and get response\n  Given user enters a question\n  When submit button is clicked\n  Then it should show loading state\n  And call the API service with question\n  And display the response when received\n  And clear loading state"
+      },
+      {
+        "id": "AC7",
+        "gherkin": "Feature: Pricing Q&A Component\nScenario: Display API errors to user\n  Given the API request fails\n  When a question is submitted\n  Then it should display an error message\n  And allow user to retry"
+      }
+    ],
+    "unit_tests": [
+      {
+        "suite": "OpenRouter API Service",
+        "file": "cornerstone/src/services/__tests__/openrouter.test.js",
+        "tests": [
+          {
+            "name": "should make POST request with correct headers",
+            "target": "queryOpenRouter",
+            "cases": ["Mock fetch", "Verify URL", "Verify headers (Authorization, Content-Type, HTTP-Referer)", "Verify request body structure"]
+          },
+          {
+            "name": "should use dev model when VITE_ENV is 'dev'",
+            "target": "queryOpenRouter",
+            "cases": ["Set env to dev", "Verify model is x-ai/grok-4-fast"]
+          },
+          {
+            "name": "should use prod model when VITE_ENV is 'prod'",
+            "target": "queryOpenRouter",
+            "cases": ["Set env to prod", "Verify model is anthropic/claude-haiku-4.5"]
+          },
+          {
+            "name": "should return response text from API",
+            "target": "queryOpenRouter",
+            "cases": ["Mock successful response", "Verify returns text content"]
+          },
+          {
+            "name": "should throw error on API failure",
+            "target": "queryOpenRouter",
+            "cases": ["Mock 404 response", "Mock 500 response", "Verify throws descriptive error"]
+          },
+          {
+            "name": "should throw error on network failure",
+            "target": "queryOpenRouter",
+            "cases": ["Mock fetch rejection", "Verify throws network error"]
+          }
+        ]
+      },
+      {
+        "suite": "Data Formatting Service",
+        "file": "cornerstone/src/services/__tests__/formatModelForLLM.test.js",
+        "tests": [
+          {
+            "name": "should include all input parameters",
+            "target": "formatPricingDataForLLM",
+            "cases": ["Provide sample inputs", "Verify all input fields in output"]
+          },
+          {
+            "name": "should include cost calculations",
+            "target": "formatPricingDataForLLM",
+            "cases": ["Provide computed model", "Verify ingestion CAPEX included", "Verify build CAPEX included", "Verify monthly OPEX included"]
+          },
+          {
+            "name": "should include margin analysis",
+            "target": "formatPricingDataForLLM",
+            "cases": ["Provide model with margins", "Verify total cost included", "Verify price included", "Verify profit included", "Verify margin % included"]
+          },
+          {
+            "name": "should include scenario details",
+            "target": "formatPricingDataForLLM",
+            "cases": ["Provide scenario config", "Verify scenario name", "Verify markups", "Verify amortization"]
+          },
+          {
+            "name": "should format currency values correctly",
+            "target": "formatPricingDataForLLM",
+            "cases": ["Provide GBP values", "Verify currency formatting"]
+          }
+        ]
+      },
+      {
+        "suite": "System Prompt Service",
+        "file": "cornerstone/src/services/__tests__/qaSystemPrompt.test.js",
+        "tests": [
+          {
+            "name": "should define assistant role",
+            "target": "buildSystemPrompt",
+            "cases": ["Verify role definition in prompt"]
+          },
+          {
+            "name": "should include pricing data context",
+            "target": "buildSystemPrompt",
+            "cases": ["Provide formatted data", "Verify data included in prompt"]
+          },
+          {
+            "name": "should provide response guidelines",
+            "target": "buildSystemPrompt",
+            "cases": ["Verify instructions present"]
+          }
+        ]
+      },
+      {
+        "suite": "PricingQA Component",
+        "file": "cornerstone/src/components/pricing/__tests__/PricingQA.test.jsx",
+        "tests": [
+          {
+            "name": "should render question input and submit button",
+            "target": "PricingQA",
+            "cases": ["Render component", "Verify input exists", "Verify button exists"]
+          },
+          {
+            "name": "should update question state on input change",
+            "target": "PricingQA",
+            "cases": ["Render component", "Type in input", "Verify state updated"]
+          },
+          {
+            "name": "should call API on submit",
+            "target": "PricingQA",
+            "cases": ["Mock API", "Submit question", "Verify API called with correct args"]
+          },
+          {
+            "name": "should show loading state during API call",
+            "target": "PricingQA",
+            "cases": ["Mock delayed API", "Submit question", "Verify loading indicator"]
+          },
+          {
+            "name": "should display response when API returns",
+            "target": "PricingQA",
+            "cases": ["Mock successful API", "Submit question", "Wait for response", "Verify response displayed"]
+          },
+          {
+            "name": "should display error on API failure",
+            "target": "PricingQA",
+            "cases": ["Mock failing API", "Submit question", "Verify error message"]
+          },
+          {
+            "name": "should prevent empty question submission",
+            "target": "PricingQA",
+            "cases": ["Empty input", "Click submit", "Verify API not called or validation shown"]
+          }
+        ]
+      }
+    ],
+    "integration_tests": [
+      {
+        "name": "End-to-end Q&A flow",
+        "scope": "Full calculator with Q&A feature",
+        "file": "cornerstone/src/__tests__/integration/qa-feature.test.jsx",
+        "env": "Mock OpenRouter API",
+        "steps": [
+          "Render CornerstonePricingCalculator",
+          "Locate Q&A section",
+          "Enter test question: 'What is the total cost per site?'",
+          "Submit question",
+          "Mock API response with relevant answer",
+          "Verify response displayed",
+          "Verify response is contextual to pricing data"
+        ]
+      }
+    ],
+    "coverage_targets": {
+      "globs": [
+        "cornerstone/src/services/openrouter.js",
+        "cornerstone/src/services/formatModelForLLM.js",
+        "cornerstone/src/services/qaSystemPrompt.js",
+        "cornerstone/src/components/pricing/PricingQA.jsx"
+      ],
+      "thresholds": {
+        "line": 80,
+        "branch": 70,
+        "function": 80
+      }
+    }
+  },
+  "steps": [
+    {
+      "id": "S1",
+      "intent": "Setup testing infrastructure",
+      "files_to_add": [
+        "cornerstone/vitest.config.js",
+        "cornerstone/src/setupTests.js"
+      ],
+      "commands": [
+        "cd cornerstone && npm install -D vitest @testing-library/react @testing-library/jest-dom @testing-library/user-event happy-dom"
+      ],
+      "expected_initial_result": "N/A (setup step)",
+      "expected_final_result": "Dependencies installed, test infrastructure ready"
+    },
+    {
+      "id": "S2",
+      "intent": "Create OpenRouter API service with TDD",
+      "files_to_add": [
+        "cornerstone/src/services/__tests__/openrouter.test.js",
+        "cornerstone/src/services/openrouter.js"
+      ],
+      "commands": [
+        "npm test openrouter.test.js"
+      ],
+      "expected_initial_result": "FAIL (tests written first, no implementation)",
+      "expected_final_result": "PASS (all 6 test cases pass after implementation)"
+    },
+    {
+      "id": "S3",
+      "intent": "Create data formatting service with TDD",
+      "files_to_add": [
+        "cornerstone/src/services/__tests__/formatModelForLLM.test.js",
+        "cornerstone/src/services/formatModelForLLM.js"
+      ],
+      "commands": [
+        "npm test formatModelForLLM.test.js"
+      ],
+      "expected_initial_result": "FAIL (tests written first)",
+      "expected_final_result": "PASS (all 5 test cases pass)"
+    },
+    {
+      "id": "S4",
+      "intent": "Create system prompt service with TDD",
+      "files_to_add": [
+        "cornerstone/src/services/__tests__/qaSystemPrompt.test.js",
+        "cornerstone/src/services/qaSystemPrompt.js"
+      ],
+      "commands": [
+        "npm test qaSystemPrompt.test.js"
+      ],
+      "expected_initial_result": "FAIL (tests written first)",
+      "expected_final_result": "PASS (all 3 test cases pass)"
+    },
+    {
+      "id": "S5",
+      "intent": "Create PricingQA component with TDD",
+      "files_to_add": [
+        "cornerstone/src/components/pricing/__tests__/PricingQA.test.jsx",
+        "cornerstone/src/components/pricing/PricingQA.jsx"
+      ],
+      "commands": [
+        "npm test PricingQA.test.jsx"
+      ],
+      "expected_initial_result": "FAIL (tests written first)",
+      "expected_final_result": "PASS (all 7 test cases pass)"
+    },
+    {
+      "id": "S6",
+      "intent": "Integrate Q&A into calculator",
+      "files_to_add": [
+        "cornerstone/src/__tests__/integration/qa-feature.test.jsx"
+      ],
+      "files_to_modify": [
+        "cornerstone/src/components/CornerstonePricingCalculator.jsx"
+      ],
+      "commands": [
+        "npm test qa-feature.test.jsx"
+      ],
+      "expected_initial_result": "FAIL (integration test written first)",
+      "expected_final_result": "PASS (integration test passes)"
+    },
+    {
+      "id": "S7",
+      "intent": "Manual verification with real API",
+      "files_to_add": [],
+      "commands": [
+        "cd cornerstone && npm run dev"
+      ],
+      "manual_steps": [
+        "Open http://localhost:5556",
+        "Locate Q&A section",
+        "Submit question: 'What is the price per site in the standard scenario?'",
+        "Verify real API response is relevant and accurate",
+        "Test error handling: Disconnect network, submit question, verify error display"
+      ],
+      "expected_initial_result": "N/A (manual verification)",
+      "expected_final_result": "Real API calls work, error handling verified"
+    }
+  ],
+  "tooling": {
+    "language": "JavaScript (JSX)",
+    "framework": "React 18",
+    "build": ["Vite 5"],
+    "test": ["Vitest", "@testing-library/react"],
+    "styling": ["Tailwind CSS 3"],
+    "api": ["OpenRouter API (fetch)"]
+  },
+  "risks": [
+    {
+      "risk": "API key exposure in .env file",
+      "severity": "HIGH",
+      "mitigation": ".env already in .gitignore, verify never committed"
+    },
+    {
+      "risk": "API rate limits or quotas",
+      "severity": "MEDIUM",
+      "mitigation": "Use debouncing, monitor usage, user is aware of costs"
+    },
+    {
+      "risk": "API costs for production usage",
+      "severity": "MEDIUM",
+      "mitigation": "Using cost-effective models (Grok for dev, Haiku for prod)"
+    },
+    {
+      "risk": "Large context exceeding token limits",
+      "severity": "LOW",
+      "mitigation": "Haiku supports 200k tokens, efficient data formatting"
+    },
+    {
+      "risk": "CORS issues from browser",
+      "severity": "LOW",
+      "mitigation": "OpenRouter supports CORS, include HTTP-Referer header"
+    },
+    {
+      "risk": "Stale data in Q&A (user changes inputs)",
+      "severity": "LOW",
+      "mitigation": "Always use current inputs/model from props"
+    }
+  ],
+  "rollback": "All new code is in new files (services/, PricingQA.jsx). Calculator integration is minimal (one import, one component render). To rollback: Remove PricingQA import and component from CornerstonePricingCalculator.jsx. No changes to existing pricing logic.",
+  "done_definition": [
+    "All unit tests pass (20+ tests across 4 suites)",
+    "Integration test passes",
+    "Manual test successful (real API call works)",
+    "Error handling verified (network failure, API error)",
+    "Loading states work correctly",
+    "Environment variable switching works (dev vs prod model)",
+    "Code follows Cornerstone patterns (Tailwind styling, functional components)",
+    ".env file secure (verified not in git)"
+  ]
+}
